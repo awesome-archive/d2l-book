@@ -4,11 +4,8 @@ stage("Build and Publish") {
       checkout scm
       sh '''set -ex
       conda remove -n d2l-book-build --all -y
-      conda create -n d2l-book-build pip=22.2.2 -y
+      conda create -n d2l-book-build python=3.9 -y
       conda activate d2l-book-build
-      
-      pip install setuptools==63.4.1
-      
       pip install .
       python -m unittest d2lbook/*_test.py
       # pip install mypy
