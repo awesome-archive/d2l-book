@@ -12,7 +12,10 @@ def prepare_sphinx_env(config):
 class SphinxEnv(object):
     def __init__(self, config):
         self.config = config
-        self.pyconf = template.sphinx_conf
+        if self.config.pdf['style'] == 'cambridge':
+            self.pyconf = template.sphinx_conf_cambridge
+        else:
+            self.pyconf = template.sphinx_conf
 
     def prepare_env(self):
         self._copy_static_files()
@@ -23,12 +26,20 @@ class SphinxEnv(object):
             self._update_pyconf(key, self.config.project[key])
         self._update_pyconf('index', self.config.build['index'])
         self._update_pyconf('sphinx_configs', self.config.build['sphinx_configs'])
+
         extensions = ['recommonmark', 'sphinxcontrib.bibtex',
-                      'sphinxcontrib.rsvgconverter', 'sphinx.ext.autodoc']
+                      'sphinxcontrib.rsvgconverter', 'sphinx.ext.autodoc',
+                      'sphinx.ext.viewcode']
         extensions.extend(self.config.build['sphinx_extensions'].split())
         self._update_pyconf('extensions', ','.join('"'+ext+'"' for ext in extensions))
+        self._update_pyconf('bibfile', self.config.pdf['bibfile'])
+        for font in ['main_font', 'sans_font', 'mono_font']:
+            font_value = ''
+            if self.config.pdf[font]:
+                font_value = '\set%s{%s}' % (font.replace('_', ''), self.config.pdf[font])
+            self._update_pyconf(font, font_value)
+
         fname = os.path.join(self.config.rst_dir, 'conf.py')
-        logging.info('write into %s', fname)
         with open(fname, 'w') as f:
             f.write(self.pyconf)
 
@@ -36,9 +47,12 @@ class SphinxEnv(object):
         self.pyconf = self.pyconf.replace(key.upper(), value)
 
     def _copy_static_files(self):
-        static_keys = ['favicon', 'logo']
-        for key in static_keys:
-            fname = self.config.html[key]
+        static_keys = [('html', 'favicon'), ('html', 'html_logo'), ('pdf', 'latex_logo')]
+        for attribute, key in static_keys:
+            if attribute == 'html':
+                fname = self.config.html[key]
+            elif attribute == 'pdf':
+                fname = self.config.pdf[key]
             if not fname:
                 self._update_pyconf(key, '')
                 continue
@@ -49,17 +63,16 @@ class SphinxEnv(object):
                 '_static', os.path.basename(fname)))
 
     def _update_header_links(self):
-        header_links = self.config.html['header_links']
-        items = header_links.replace('\n','').split(',')
-        assert len(items) % 3 == 0, header_links
+        items = utils.split_config_str(self.config.html['header_links'], 3)
         sphinx_links = ''
-        for i in range(0, len(items), 3):
-            sphinx_links += "('%s', '%s', True, '%s')," % (
-                items[i], items[i+1], items[i+2])
+        for tk in items:
+            if tk:
+                sphinx_links += "('%s', '%s', True, '%s')," % (tk[0], tk[1], tk[2])
         self._update_pyconf('header_links', sphinx_links)
 
     def _write_js(self):
-        d2l_js = template.shorten_sec_num + template.replace_qr
+        d2l_js = (template.shorten_sec_num + template.replace_qr
+                  + template.copybutton_js + template.discourse_js + template.tabbar_js)
         g_id = 'google_analytics_tracking_id'
         if g_id in self.config.deploy:
             d2l_js += template.google_tracker.replace(
@@ -67,7 +80,6 @@ class SphinxEnv(object):
 
         os.makedirs(os.path.join(self.config.rst_dir, '_static'), exist_ok=True)
         fname = os.path.join(self.config.rst_dir, '_static', 'd2l.js')
-        logging.info('write into %s', fname)
         with open(fname, 'w') as f:
             f.write(d2l_js)
             for fname in utils.find_files(self.config.html['include_js'], self.config.src_dir):
@@ -76,7 +88,10 @@ class SphinxEnv(object):
 
     def _write_css(self):
         fname = os.path.join(self.config.rst_dir, '_static', 'd2l.css')
+        d2l_css = template.hide_bibkey_css + template.copybutton_css + \
+            template.limit_output_length_css + template.tabbar_css
         with open(fname, 'w') as f:
+            f.write(d2l_css)
             for fname in utils.find_files(self.config.html['include_css'], self.config.src_dir):
                 with open (fname, 'r') as fin:
                     f.write(fin.read())
