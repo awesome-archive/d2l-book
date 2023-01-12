@@ -6,6 +6,8 @@ stage("Build and Publish") {
       conda remove -n d2l-book-build --all -y
       conda create -n d2l-book-build python=3.9 -y
       conda activate d2l-book-build
+      pip install sphinxcontrib-applehelp==1.0.2
+      pip install sphinx==5.3.0
       pip install .
       python -m unittest d2lbook/*_test.py
       # pip install mypy
