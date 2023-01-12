@@ -6,7 +6,7 @@ stage("Build and Publish") {
       conda remove -n d2l-book-build --all -y
       conda create -n d2l-book-build pip -y
       conda activate d2l-book-build
-      python -m pip install
+      python -m pip install .
       python -m unittest d2lbook/*_test.py
       # pip install mypy
       # mypy --ignore-missing-imports d2lbook/*_test.py
