@@ -7,7 +7,7 @@ stage("Build and Publish") {
       conda create -n d2l-book-build pip -y
       conda activate d2l-book-build
       
-      pip install setuptools==65.5.0
+      pip install setuptools==63.4.1
       
       pip install .
       python -m unittest d2lbook/*_test.py
